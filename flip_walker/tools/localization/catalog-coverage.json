@@ -1,0 +1,12 @@
+{
+  "locale": "es-ES",
+  "pokeapi_language_id": 7,
+  "iso3166": "es",
+  "counts": {
+    "ITEM": 537,
+    "MOVE": 468,
+    "ABILITY": 124
+  },
+  "ui_keys": 413,
+  "generation": 4
+}

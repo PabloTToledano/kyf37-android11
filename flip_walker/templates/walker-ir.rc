@@ -1,0 +1,10 @@
+# Included only in the matching ROM, never installed by the standalone APK build.
+# Uses the ROM's existing development kyf37_irda domain; production policy pending.
+service kyf37-walker-ir /system/bin/kyf37-walker-ir --broker
+    class late_start
+    user root
+    group root
+    disabled
+
+on property:sys.boot_completed=1
+    start kyf37-walker-ir

@@ -1,0 +1,363 @@
+diff --git a/main.c b/main.c
+index 8db178a..dd60462 100755
+--- a/main.c
++++ b/main.c
+@@ -7,6 +7,13 @@
+ #include <time.h>
+ #include <SDL2/SDL.h>
+ #include <stdarg.h>
++#ifndef __EMSCRIPTEN__
++extern int close(int);
++#include <fcntl.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <arpa/inet.h>
++#endif
+ #ifdef __EMSCRIPTEN__
+ #include <emscripten.h>
+ #endif
+@@ -95,17 +102,34 @@ typedef struct mm_reg {
+ 
+ //MM_REG("UNK_REG",   0xF088, REGTYPE_DBW8_ACCS2,  NULL, NULL, "Unknown IO Reg (TODO?)", 0),
+ 
++static void ir_open(pw_context_t *ctx);
++static long ir_clock = 0; // total emulated states, for IR debug timestamps
+ static uint8_t io2_get_pdr1(pw_context_t *ctx);
+ static void io2_set_pdr1(pw_context_t *ctx, uint8_t val);
+ static uint8_t io2_get_pdr9(pw_context_t *ctx);
+ static void io2_set_pdr9(pw_context_t *ctx, uint8_t val);
+ 
++#define SCI_SSR_TDRE (1 << 7)
++#define SCI_SSR_RDRF (1 << 6)
++#define SCI_SSR_OER  (1 << 5)
++#define SCI_SSR_TEND (1 << 2)
++
++static int ir_rdr_reads = 0;
+ static uint8_t sci_get_rdr(pw_context_t *ctx) {
+-    return 0xFC ^ 0xAA;// ctx->rdr;
++    if (ctx->ssr & SCI_SSR_RDRF) ir_rdr_reads++;
++    else if (getenv("POWAR_IR_DEBUG")) printf("[IR] RDR read with RDRF clear\n");
++    ctx->ssr &= ~SCI_SSR_RDRF;
++    return ctx->rdr;
+ }
+ 
+ static void sci_set_tdr(pw_context_t *ctx, uint8_t val) {
+     ctx->tdr = val;
++    if (ctx->scr & (1 << 5)) { // TE
++        if (ctx->ir_tx_len < (int)sizeof(ctx->ir_tx))
++            ctx->ir_tx[ctx->ir_tx_len++] = val;
++        ctx->ir_tx_idle = 0;
++    }
++    ctx->ssr |= SCI_SSR_TDRE | SCI_SSR_TEND;
+ }
+ 
+ static uint8_t sci_get_tdr(pw_context_t *ctx) {
+@@ -135,7 +159,7 @@ static uint8_t sci_get_smr(pw_context_t *ctx) {
+ 
+ static void sci_set_scr(pw_context_t *ctx, uint8_t val) {
+     ctx->scr = val;
+-    printf("[SCI SCR] TIE:%d RIE:%d TE:%d RE:%d MPIE:%d TEIE:%d CKE:%d\n", 
++    printf("%ld [SCI SCR] TIE:%d RIE:%d TE:%d RE:%d MPIE:%d TEIE:%d CKE:%d\n", ir_clock,
+         !!(ctx->scr & (1 << SCI_SCR_TIE_BIT)),
+         !!(ctx->scr & (1 << SCI_SCR_RIE_BIT)),
+         !!(ctx->scr & (1 << SCI_SCR_TE_BIT)),
+@@ -151,12 +175,16 @@ static uint8_t sci_get_scr(pw_context_t *ctx) {
+ }
+ 
+ static void sci_set_ssr(pw_context_t *ctx, uint8_t val) {
+-    ctx->ssr &= val;
++    // flags can only be cleared; TDRE/TEND are always ready here
++    // like real hardware, a flag is only cleared by writing 0 after it was read as 1
++    ctx->ssr &= val | ~ctx->ssr_seen | SCI_SSR_TDRE | SCI_SSR_TEND;
++    ctx->ssr_seen = 0;
+     //printf("[SCI SSR] %x\n", val);
+ }
+ 
+ static uint8_t sci_get_ssr(pw_context_t *ctx) {
+-    return 0xBF; //ctx->ssr;
++    ctx->ssr_seen = ctx->ssr;
++    return ctx->ssr | SCI_SSR_TDRE | SCI_SSR_TEND;
+ }
+ 
+ #define SCI_IRCR_IRE_BIT 7
+@@ -1809,6 +1837,9 @@ static void op_01(pw_context_t *ctx, uint16_t addr, uint16_t instr) {
+                         if (FUR_LMSB == 0) {
+                             // MOV.L @aa:24,ERd
+                             debug("mov.l @%x:24, er%d\n", peek24(ctx, addr+5), FUR_LCHK);
++                            write_reg32(ctx, FUR_LCHK, movl(ctx, 0, read32(ctx, read16(ctx, addr+6))));
++                            ctx->ip += 8;
++                            STATES(4, 0, 0, 0, 2, 0);
+                         }
+                         break;
+                     case 8:
+@@ -1824,6 +1855,9 @@ static void op_01(pw_context_t *ctx, uint16_t addr, uint16_t instr) {
+                         if (FUR_LMSB == 0) {
+                             // MOV.L ERs,@aa:24
+                             debug("mov.l er%d, @aa:24\n", FUR_LCHK, peek24(ctx, addr+5));
++                            write32(ctx, read16(ctx, addr+6), movl(ctx, 0, read_reg32(ctx, FUR_LCHK)));
++                            ctx->ip += 8;
++                            STATES(4, 0, 0, 0, 2, 0);
+                         }
+                         break;
+                 }
+@@ -1840,7 +1874,13 @@ static void op_01(pw_context_t *ctx, uint16_t addr, uint16_t instr) {
+                     } else {
+                         // MOV.L @ERs+,ERd
+                         debug("mov.l @er%d+, er%d\n", FUR_HCHK, FUR_LCHK);
++                        uint32_t src = read_reg32(ctx, FUR_HCHK);
++                        uint32_t v = read32(ctx, src);
++                        write_reg32(ctx, FUR_HCHK, src + 4);
++                        write_reg32(ctx, FUR_LCHK, movl(ctx, 0, v));
+                         INTERNAL_STATES(2);
++                        ctx->ip += 4;
++                        STATES(2, 0, 0, 0, 2, 2);
+                     }
+                 } else if (FUR_HMSB == 1 && FUR_LMSB == 0) {\
+                     if (FUR_H == 0xF) {
+@@ -1855,7 +1895,12 @@ static void op_01(pw_context_t *ctx, uint16_t addr, uint16_t instr) {
+                     } else {
+                         // MOV.L ERs,@-ERd
+                         debug("mov.l er%d, @-er%d\n", FUR_LCHK, FUR_HCHK);
++                        uint32_t dst = read_reg32(ctx, FUR_HCHK) - 4;
++                        write_reg32(ctx, FUR_HCHK, dst);
++                        write32(ctx, dst, movl(ctx, 0, read_reg32(ctx, FUR_LCHK)));
+                         INTERNAL_STATES(2);
++                        ctx->ip += 4;
++                        STATES(2, 0, 0, 0, 2, 2);
+                     }
+                 }
+                 break;
+@@ -1931,13 +1976,22 @@ static void op_01(pw_context_t *ctx, uint16_t addr, uint16_t instr) {
+         }
+     } else if(MIN == 0xF0) {
+         BIG_INSTRUCTION;
+-        if (THR == 0x65) {
++        uint32_t s = read_reg32(ctx, FUR_HCHK), d = read_reg32(ctx, FUR_LCHK);
++        if (THR == 0x64) {
++            // OR.L ERs,ERd
++            debug("or.l er%d, er%d\n", FUR_HCHK, FUR_LCHK);
++            write_reg32(ctx, FUR_LCHK, movl(ctx, 0, d | s));
++        } else if (THR == 0x65) {
+             // XOR.L ERs,ERd
+             debug("xor.l er%d, er%d\n", FUR_HCHK, FUR_LCHK);
++            write_reg32(ctx, FUR_LCHK, movl(ctx, 0, d ^ s));
+         } else if (THR == 0x66) {
+             // AND.L ERs,ERd
+             debug("and.l er%d, er%d\n", FUR_HCHK, FUR_LCHK);
++            write_reg32(ctx, FUR_LCHK, movl(ctx, 0, d & s));
+         }
++        ctx->ip += 4;
++        STATES(2, 0, 0, 0, 0, 0);
+     }
+ }
+ 
+@@ -3061,6 +3115,11 @@ void pw_init(pw_context_t *ctx, int *should_redraw) {
+ 
+     ctx->tmrw_rem = 0;
+ 
++    ctx->ssr = SCI_SSR_TDRE | SCI_SSR_TEND;
++    ctx->ir_rx_len = ctx->ir_rx_pos = 0;
++    ctx->ir_tx_len = 0;
++    ir_open(ctx);
++
+     
+     ctx->mode = MODE_ACTIVE_HIGH;
+ 
+@@ -3220,6 +3279,132 @@ static void tmrw_update(pw_context_t *ctx, int states) {
+     //printf("tcnt %d\n", ctx->tcnt);
+ }
+ 
++// ~115200 baud at the emulated clock
++#define IR_STATES_PER_BYTE (STATES_PER_SECOND / 11520)
++#define IR_TX_FLUSH_STATES (IR_STATES_PER_BYTE * 4)
++
++static int ir_port_env(const char *name, int def) {
++    const char *v = getenv(name);
++    return v ? atoi(v) : def;
++}
++
++static void ir_open(pw_context_t *ctx) {
++    ctx->ir_sock = -1;
++#ifndef __EMSCRIPTEN__
++    int s = socket(AF_INET, SOCK_DGRAM, 0);
++    if (s < 0) return;
++    struct sockaddr_in addr = {0};
++    addr.sin_family = AF_INET;
++    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
++    addr.sin_port = htons(ir_port_env("POWAR_IR_PORT", 34561));
++    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
++        printf("[IR] could not bind UDP port, IR disabled\n");
++        close(s);
++        return;
++    }
++    fcntl(s, F_SETFL, O_NONBLOCK);
++    ctx->ir_sock = s;
++    printf("[IR] bridge listening on UDP %d\n", ntohs(addr.sin_port));
++#endif
++}
++
++static void ir_flush_tx(pw_context_t *ctx) {
++#ifndef __EMSCRIPTEN__
++    if (ctx->ir_sock >= 0 && ctx->ir_tx_len > 0) {
++        struct sockaddr_in peer = {0};
++        peer.sin_family = AF_INET;
++        peer.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
++        peer.sin_port = htons(ir_port_env("POWAR_IR_PEER", 34560));
++        sendto(ctx->ir_sock, ctx->ir_tx, ctx->ir_tx_len, 0, (struct sockaddr *)&peer, sizeof(peer));
++        if (getenv("POWAR_IR_DEBUG")) {
++            printf("%ld [IR TX %d]", ir_clock, ctx->ir_tx_len);
++            for (int i = 0; i < ctx->ir_tx_len; i++) printf(" %.2x", ctx->ir_tx[i] ^ 0xAA);
++            puts("");
++        }
++    }
++#endif
++    ctx->ir_tx_len = 0;
++}
++
++static void ir_update(pw_context_t *ctx, int states) {
++    ir_clock += states;
++    {
++        // stall tracer: POWAR_IR_TRACE dumps PCs if no reply follows a received burst
++        static long last_rx_done = -1, next_dump = 0; static int dumps = 0;
++        static const char *tr = (const char *)1;
++        if (tr == (const char *)1) tr = getenv("POWAR_IR_TRACE");
++        if (tr) {
++            if (ctx->ir_rx_len && ctx->ir_rx_pos == ctx->ir_rx_len && last_rx_done < 0) { last_rx_done = ir_clock; next_dump = ir_clock + 40000; }
++            if (ctx->ir_tx_len) last_rx_done = -1;
++            if (ctx->ir_rx_pos < ctx->ir_rx_len) last_rx_done = -1;
++            if (last_rx_done >= 0 && ir_clock >= next_dump && dumps < 400) {
++                printf("%ld [TRACE] pc=%04x er0=%08x er1=%08x er2=%08x er3=%08x er5=%08x er6=%08x sp=%08x\n", ir_clock, ctx->ip,
++                    read_reg32(ctx,0), read_reg32(ctx,1), read_reg32(ctx,2), read_reg32(ctx,3), read_reg32(ctx,5), read_reg32(ctx,6), read_reg32(ctx,7));
++                next_dump = ir_clock + 997; dumps++;
++            }
++        }
++    }
++    if (ctx->ir_rx_pos < ctx->ir_rx_len && ctx->ir_rx_pos + 1 == ctx->ir_rx_len && !(ctx->ssr & SCI_SSR_RDRF) && getenv("POWAR_IR_DEBUG") && ctx->ir_rx_wait <= states)
++        printf("%ld [IR RX last byte delivered] reads so far %d\n", ir_clock, ir_rdr_reads);
++    // transmit: a burst ends once TDR has been idle for a few byte times
++    if (ctx->ir_tx_len > 0) {
++        ctx->ir_tx_idle += states;
++        if (ctx->ir_tx_idle >= IR_TX_FLUSH_STATES)
++            ir_flush_tx(ctx);
++    }
++
++    // receive: fetch the next burst once the previous one is consumed
++#ifndef __EMSCRIPTEN__
++    if (ctx->ir_rx_pos >= ctx->ir_rx_len && ctx->ir_sock >= 0) {
++        int n = recv(ctx->ir_sock, ctx->ir_rx, sizeof(ctx->ir_rx), 0);
++        if (n > 0) {
++            if (!(ctx->scr & (1 << 4))) { // RE off: walker is not listening
++                if (getenv("POWAR_IR_DEBUG")) printf("%ld [IR RX dropped %d, RE off]\n", ir_clock, n);
++                return;
++            }
++            ctx->ir_rx_len = n;
++            ctx->ir_rx_pos = 0;
++            ir_rdr_reads = 0;
++            // real IR has a turnaround delay; don't land the first byte while the
++            // firmware is still flushing its receiver after transmitting
++            {
++                static long gap = -1;
++                if (gap < 0) { const char *g = getenv("POWAR_IR_GAP"); gap = g ? atol(g) : 8000; }
++                ctx->ir_rx_wait = gap;
++            }
++            if (getenv("POWAR_IR_DEBUG")) {
++                printf("%ld [IR RX %d]", ir_clock, n);
++                for (int i = 0; i < n; i++) printf(" %.2x", ctx->ir_rx[i] ^ 0xAA);
++                puts("");
++            }
++        }
++    }
++#endif
++    if (ctx->ir_rx_pos < ctx->ir_rx_len) {
++        ctx->ir_rx_wait -= states;
++        // hold the byte until the firmware has read the previous one
++        if (ctx->ir_rx_wait <= 0 && !(ctx->ssr & SCI_SSR_RDRF)) {
++            ctx->rdr = ctx->ir_rx[ctx->ir_rx_pos++];
++            ctx->ssr |= SCI_SSR_RDRF;
++            ctx->ir_rx_wait = IR_STATES_PER_BYTE;
++        }
++    }
++}
++
++static void eeprom_save(pw_context_t *ctx) {
++    static uint8_t saved[1 << 16];
++    static int have_saved = 0;
++    if (have_saved && !memcmp(saved, ctx->eeprom_data, sizeof(saved)))
++        return;
++    FILE *f = fopen("eeprom.bin.tmp", "wb");
++    if (!f) return;
++    fwrite(ctx->eeprom_data, 1, 1 << 16, f);
++    fclose(f);
++    rename("eeprom.bin.tmp", "eeprom.bin");
++    memcpy(saved, ctx->eeprom_data, sizeof(saved));
++    have_saved = 1;
++}
++
+ typedef struct render_context_t {
+     pw_context_t* ctx;
+     int* should_redraw;
+@@ -3239,11 +3424,23 @@ void loop(uintptr_t render_ctx) {
+         int old_states = context->ctx->states;
+         pw_step(context->ctx);
+         tmrw_update(context->ctx, context->ctx->states - old_states);
++        ir_update(context->ctx, context->ctx->states - old_states);
+         (*(context->count))++;
+     }
+     //rtc_update(&ctx.rtc);
+     //int old_keys = ctx.keys_pressed;
+     context->ctx->keys_pressed = sdl_poll(context->ctx->keys_pressed, context->should_redraw);
++    {
++        // test hook: POWAR_AUTOPRESS=<frame> presses the center button at that frame
++        static long frame = 0; static const char *ap = (const char *)1;
++        if (ap == (const char *)1) ap = getenv("POWAR_AUTOPRESS");
++        frame++;
++        if (ap) {
++            long f = atol(ap);
++            if (frame == f) context->ctx->keys_pressed |= 1;
++            if (frame == f + 10) context->ctx->keys_pressed &= ~1;
++        }
++    }
+     // TODO: maybe invert keys pressed ?
+     portb_update(&context->ctx->portb, context->ctx->keys_pressed);
+     if (*(context->should_redraw)) {
+@@ -3264,6 +3461,11 @@ void loop(uintptr_t render_ctx) {
+ #endif // !__EMSCRIPTEN__
+ 
+     context->ctx->states = 0;
++
++    // persist the walker's EEPROM every ~5 seconds
++    static int batches = 0;
++    if (++batches % 300 == 0)
++        eeprom_save(context->ctx);
+ }
+ 
+ int main(int argc, char *argv[]) {
+@@ -3299,6 +3501,7 @@ int main(int argc, char *argv[]) {
+     }
+ #endif
+     
++    eeprom_save(&ctx);
+     printf("Executed %ld steps!\n", count);
+     sdl_quit();
+ }
+diff --git a/main.h b/main.h
+index 76da497..19721a5 100755
+--- a/main.h
++++ b/main.h
+@@ -84,6 +84,16 @@ typedef struct pw_context {
+     uint8_t ircr;
+     uint8_t semr;
+ 
++    // IR bridge (SCI3 <-> UDP)
++    int ir_sock;
++    uint8_t ssr_seen;  // SSR flags observed set by the last read
++    uint8_t ir_rx[256];
++    int ir_rx_len, ir_rx_pos;
++    long ir_rx_wait;   // states until next byte lands in RDR
++    uint8_t ir_tx[256];
++    int ir_tx_len;
++    long ir_tx_idle;   // states since last TDR write
++
+     ssu_t ssu;
+     eeprom_t eeprom;
+     lcd_t lcd;

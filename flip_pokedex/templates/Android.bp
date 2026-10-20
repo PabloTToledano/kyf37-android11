@@ -1,0 +1,35 @@
+android_app {
+    name: "FlipPokedex",
+    sdk_version: "current",
+    min_sdk_version: "23",
+    srcs: ["src/**/*.java"],
+    resource_dirs: ["res"],
+    asset_dirs: ["assets"],
+    aaptflags: ["-0", "tflite"],
+    static_libs: ["flip_pokedex_litert", "flip_pokedex_litert_api"],
+    jni_libs: ["flip_pokedex_tflite_jni"],
+    optimize: { enabled: false },
+}
+
+java_import {
+    name: "flip_pokedex_litert",
+    jars: ["libs/litert.jar"],
+    sdk_version: "current",
+}
+java_import {
+    name: "flip_pokedex_litert_api",
+    jars: ["libs/litert-api.jar"],
+    sdk_version: "current",
+}
+cc_prebuilt_library_shared {
+    name: "flip_pokedex_tflite_jni",
+    stem: "libtensorflowlite_jni",
+    sdk_version: "23",
+    stl: "none",
+    compile_multilib: "32",
+    arch: {
+        arm: { srcs: ["libs/armeabi-v7a/libtensorflowlite_jni.so"] },
+        x86: { enabled: false },
+    },
+    strip: { none: true },
+}

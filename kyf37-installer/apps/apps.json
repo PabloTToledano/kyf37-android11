@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "apps": [
+    {
+      "name": "Flip Pokédex",
+      "package": "org.kyf37.pokedex",
+      "file": "FlipPokedex.apk",
+      "versionCode": 2,
+      "versionName": "1.1-experimental-ai",
+      "minSdk": 23,
+      "bytes": 202275870,
+      "sha256": "0d54e276d76ccb4e4edebc13778046ecd48ef9eb56c5f8b31a7282b95a8e8156"
+    },
+    {
+      "name": "Flip Walker",
+      "package": "org.kyf37.walker",
+      "file": "FlipWalker.apk",
+      "versionCode": 9,
+      "versionName": "0.9-ir-timing",
+      "minSdk": 26,
+      "bytes": 1323921,
+      "sha256": "7c0e9551debfc138bfccf5bcfde8dfad2b5f0df872ed70cb7aa3fd47aba93a7b"
+    }
+  ]
+}

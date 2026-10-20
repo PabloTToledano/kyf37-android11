@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/PokeAPI/pokeapi",
+  "commit": "5ee47a9a9c1229632ec4b473a9c1c53026e005dd",
+  "files": {
+    "item_names.csv": "c4ad0b446e395c378d8ba75d6900f051cc9ebb99431d4000adeac35f492852f0",
+    "item_game_indices.csv": "ad7576a23dea4e136ea887f5f04b680abc4f72131812fa011bdddeb54760c653",
+    "move_names.csv": "99e23ee38ea53d1473474d463b87651deac3cd4928750f8186feae66da45c147",
+    "ability_names.csv": "8acb80c42210f86ae747dc3347b060d69cd2574a9dbfaf74774ae632ca6348da",
+    "languages.csv": "fbb60019a6a461783d5671a995d5f590db61792a273e90faa0ed630d102a19b8",
+    "LICENSE.md": "1c04595dc662981c20956ae4251dfa7b62b475c345eddf98bc9b904cb2373f2c"
+  }
+}

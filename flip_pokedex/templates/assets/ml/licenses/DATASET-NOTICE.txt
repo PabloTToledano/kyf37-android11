@@ -1,0 +1,24 @@
+Experimental Flip Pokedex photo/artwork classifier, 2026-10-15.
+649 National Pokemon species plus unknown. MobileNetV2 alpha 0.35, INT8.
+
+Pokemon image training data: JJMack/pokemon-classification-gen1-9
+https://huggingface.co/datasets/JJMack/pokemon-classification-gen1-9
+Pinned revision: 959ff557b102fc3b4f912d0ca769273be5b9ca7f
+Dataset card license: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+Changes: exact-pixel deduplication, EXIF correction, alpha compositing, resizing,
+selection of species 1-649; later species sampled as unknown; model training,
+fine-tuning and integer quantization. Treat model distribution as noncommercial
+and share-alike under that license. Original artwork rights remain with owners.
+The public dataset's image-by-image rights/provenance have not been independently
+audited. Pokemon (c) Nintendo / Creatures Inc. / GAME FREAK inc. Unaffiliated app.
+
+Generic object negatives: CIFAR-10 by Alex Krizhevsky, Vinod Nair and Geoffrey
+Hinton, University of Toronto. Retrieved via uoft-cs/cifar10, pinned revision
+0b2714987fa478483af9968de7c934580d0bb9a2.
+https://huggingface.co/datasets/uoft-cs/cifar10
+https://www.cs.toronto.edu/~kriz/cifar.html
+
+Initial backbone: TensorFlow/Keras MobileNetV2 ImageNet pretrained weights.
+Runtime: Google LiteRT Interpreter/API 1.4.2; accompanying license files included.
+Full dataset hashes, test metrics and model SHA-256: ../model.json.

@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.kyf37.pokedex" android:versionCode="2" android:versionName="1.1-experimental-ai">
+  <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="29" />
+  <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <uses-permission android:name="android.permission.CAMERA" />
+  <application android:extractNativeLibs="true" android:label="Flip Pokédex" android:icon="@drawable/ic_dex" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false" android:supportsRtl="false">
+    <provider android:name=".CaptureProvider" android:authorities="org.kyf37.pokedex.capture" android:exported="false" android:grantUriPermissions="true" />
+    <activity android:name=".IdentifyActivity" android:screenOrientation="portrait" android:exported="false" />
+    <activity android:name=".PokedexActivity" android:screenOrientation="portrait" android:exported="true">
+      <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+    </activity>
+  </application>
+</manifest>

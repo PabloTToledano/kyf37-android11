@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.kyf37.walker" android:versionCode="9" android:versionName="0.9-ir-timing">
+  <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="29"/>
+  <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="org.kyf37.permission.OUTER_SCREEN_CLIENT"/>
+  <queries><package android:name="org.kyf37.subdisplay"/></queries>
+  <uses-permission android:name="org.kyf37.permission.OUTER_SCREEN_CLIENT"/>
+  <queries><package android:name="org.kyf37.subdisplay"/><package android:name="org.kyf37.pokedex"/></queries>
+  <!-- full-emulation: import the owner's ROM dump once --><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false"/>
+  <application android:label="Flip Walker" android:icon="@drawable/ic_walker" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false" android:extractNativeLibs="true" android:requestLegacyExternalStorage="true">
+    <activity android:name=".WalkerActivity" android:screenOrientation="portrait" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+    <activity android:name=".EmulatedWalkerActivity" android:label="Pokéwalker" android:screenOrientation="portrait" android:exported="false" android:theme="@android:style/Theme.Material.NoActionBar"></activity>
+    <!-- outer screen side key on Flip Walker's page: only the system display service may send it -->
+    <receiver android:name=".OuterButtonReceiver" android:exported="true" android:permission="org.kyf37.permission.OUTER_SCREEN"><intent-filter><action android:name="org.kyf37.outerscreen.action.BUTTON"/></intent-filter></receiver>
+    <service android:name=".StepService" android:exported="false"/>
+    <service android:name=".IrProbeService" android:exported="false"/>
+  </application>
+</manifest>
