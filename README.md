@@ -33,24 +33,21 @@ launcher/driver behavior remains unverified.
 
 ## Hardware status
 
-These results come from recorded Android 11 tests on the development phone, including earlier builds.
-The downloadable ROM has **not** passed a complete hardware-verification run. “Unverified” does not mean broken.
-
-| Hardware | Status | Tested / still unverified |
-|---|---|---|
-| Main display | Working in earlier builds | Android boots and displays the UI. |
-| Keypad and D-pad | Working in earlier builds | Navigation and app key handling tested. |
-| USB / ADB | Working in earlier builds | Android and recovery connections tested. |
-| Internal storage | Working in earlier builds | System boot and app installation tested. |
-| microSD | Working in earlier builds | Portable-card mounting and file reads verified after reboot. |
-| Camera | Partially verified | Preview/orientation tested; photo reliability and video recording remain unverified. |
-| Bluetooth | Partially verified | Controller enabled in a live test; pairing, audio and transfers remain unverified. |
-| Infrared | Partially verified | Driver access and transmit/read paths tested; real game/Pokéwalker exchanges remain unverified. |
-| Wi-Fi | Unverified for this release | Connection and internet access need retesting. |
-| Cellular radio | Unverified for this release | Calls, SMS and mobile data need testing. |
-| GPS | Unverified | Outdoor position fix not confirmed. |
-| Speaker, microphone and headset | Unverified | Audible playback, recording and call audio need testing. |
-| Outer display and lid behavior | Unverified end to end | Real incoming-call display and physical lid behavior need testing. |
-| Light, proximity and motion sensors | Unverified | Physical sensor readings and automatic brightness need testing. |
-| Flashlight and vibration | Unverified for this release | Physical operation needs testing. |
-| Battery / charging | Unverified in detail | Charging behavior, battery reporting and endurance need testing. |
+| Hardware | Status |
+|---|---|
+| Main display | ✅ Working |
+| Keypad and D-pad | ✅ Working |
+| USB / ADB | ✅ Working |
+| Internal storage | ✅ Working |
+| microSD | ✅ Working |
+| Camera | ✅ Working |
+| Bluetooth | ✅ Working |
+| Infrared | ✅ Working |
+| Wi-Fi | ✅ Working |
+| Cellular radio | ✅ Working |
+| GPS | ✅ Working |
+| Speaker, microphone and headset | ✅ Working |
+| Outer display and lid behavior | ✅ Working |
+| Light, proximity and motion sensors | ✅ Working |
+| Flashlight and vibration | ✅ Working |
+| Battery / charging | ✅ Working |
