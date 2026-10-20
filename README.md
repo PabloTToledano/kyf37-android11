@@ -1,60 +1,56 @@
-# KYF37 Customizer
+# kyf37-android11
 
-Linux and Windows installer for a stock **Kyocera GRATINA KYF37**: diagnostic root, original-firmware backup,
-per-phone signing, custom keypad TWRP, Android 11 Go, Flip Pokédex and Flip Walker.
+Install Android 11 Go, custom keypad TWRP, Flip Pokédex and Flip Walker on a Kyocera GRATINA KYF37.
 
-**Experimental:** stock-to-custom conversion has not been tested end to end on stock hardware. Native Windows
-execution is also unverified. The included ROM candidate reports `hardware_verified=false`. Offline checks do
-not establish that a phone conversion will succeed. Read the [installer guide](docs/INSTALLER.md) first.
+## Installation
 
-## Download and start
+1. Start with a **stock KYF37 running Android 5.1**, at least **50% battery**, USB debugging enabled,
+   a **FAT32 microSD with 3 GB free**, and **8 GB free on your computer**. Back up personal files separately.
+2. Download **[kyf37-customizer-20261020.zip](https://github.com/PabloTToledano/kyf37-customizer/releases/download/v2026.10.20-experimental/kyf37-customizer-20261020.zip)**
+   from the [experimental release](https://github.com/PabloTToledano/kyf37-customizer/releases/tag/v2026.10.20-experimental).
+   Extract the whole ZIP to a writable folder. Use this complete bundle, not the GitHub source archives.
+3. Connect the phone by USB and accept its USB-debugging authorization prompt.
+4. Start the installer:
 
-1. Open [Releases](https://github.com/PabloTToledano/kyf37-customizer/releases/tag/v2026.10.20-experimental) and download
-   **kyf37-customizer-20261020.zip** and its `.sha256` file. The complete bundle is about 852 MiB.
-   Use the complete bundle, rather than GitHub's generated **Source code** archives.
-2. Extract the entire ZIP to a writable folder. It includes the ROM, unsigned custom recovery template,
-   rooting tools, both APKs, Linux/Windows ADB, and Zadig for Windows.
-3. Charge a stock KYF37 (Android 5.1) to at least 50%, enable USB debugging, authorize your computer,
-   and insert a FAT32 microSD with at least 3 GB free. Allow at least 8 GB free on the computer.
-4. Linux: run `./install.sh`. Windows: double-click `install.cmd` or run `.\install.ps1` in PowerShell.
-   The first start downloads missing Python and Python packages. The default is a dry run.
-5. Read `START-HERE.md`. When ready, use `./install.sh --live` or `.\install.cmd --live`.
-   The guided workflow asks for confirmation before write stages.
+   | System | Dry run | Install |
+   |---|---|---|
+   | Linux | `./install.sh` | `./install.sh --live` |
+   | Windows | Double-click `install.cmd` | Run `.\install.cmd --live` in PowerShell |
 
-You can also obtain and verify the pinned complete release using `python3 download-release.py`
-(or `py -3 download-release.py` on Windows) from a checkout of this repository.
+   Missing Python dependencies download automatically. On Windows, use the included Zadig utility when prompted:
+   install WinUSB for **interface 0 of 05c6:9091**, leaving interface 3 as ADB. On Linux, follow the printed
+   USB-permissions instructions if needed.
+5. Follow the guided stages: root, firmware backup, rescue test, per-phone signing, recovery and ROM installation.
+   Keep USB connected through the first Android boot; the final stage installs Pokédex and Flip Walker.
 
-**The separate ROM ZIP and recovery image are personalization inputs. Do not flash them directly.**
-Every phone gets its own locally generated signing key and personalized images. The installer never uploads that key.
+Keep the generated signing key, per-phone workspace and original backups private. **Do not flash the separate
+ROM/recovery downloads directly, wipe userdata, or flash the stock ROM.** See the [detailed guide](docs/INSTALLER.md)
+if a stage stops. To resume only the apps, use `./install.sh --live --stage apps` on Linux or
+`.\install.cmd --live --stage apps` on Windows.
 
-## What the installer does
+**Experimental:** stock-to-custom installation has not been tested end to end on a stock phone. Native Windows
+launcher/driver behavior remains unverified.
 
-| Stage | Operation |
-|---|---|
-| 1 | Check model, stock version, battery, tools and computer storage |
-| 2–3 | Enable diagnostic USB and obtain root |
-| 4–5 | Back up original partitions to microSD and guide a rescue-mode test |
-| 6–7 | Generate a local signing key, prepare signed images and install custom keypad TWRP |
-| 8 | Personalize the ROM ZIP for that phone and install matching boot/system images |
-| 9 | Wait for Android boot and install Flip Pokédex 1.1 and Flip Walker 0.9 |
+## Hardware status
 
-Existing app data is retained. Exact installed APKs are skipped and newer versions are kept. For apps only:
-`./install.sh --live --stage apps` or `.\install.cmd --live --stage apps`.
+These results come from recorded Android 11 tests on the development phone, including earlier builds.
+The downloadable ROM has **not** passed a complete hardware-verification run. “Unverified” does not mean broken.
 
-Keep the entire per-phone workspace and original backups private. Do not wipe userdata or flash the stock ROM.
-A backup of firmware excludes personal userdata: copy your personal files separately. Never share your signing key.
-Windows diagnostic root requires WinUSB on interface 0 of `05c6:9091`, while interface 3 must remain ADB.
-Linux USB permissions may need an administrator-installed udev rule. These driver/permission steps are manual.
-
-## Documentation and source
-
-- [Detailed installer and retry behavior](docs/INSTALLER.md)
-- [Recovery preparation and failure guidance](docs/recovery/USB-RECOVERY.md)
-- [What was tested and what remains unverified](docs/VALIDATION.md)
-- [Development and corresponding sources](docs/DEVELOPMENT.md)
-- [Pokédex](flip_pokedex/README.md) and [Flip Walker](flip_walker/README.md)
-- [Release inventory](docs/release/release.json) and [checksums](docs/release/SHA256SUMS)
-
-Original installer code follows [Apache-2.0](LICENSE). Flip Walker and other bundled components retain their
-own licenses; see [NOTICE](NOTICE), [Walker license](flip_walker/LICENSE), and each app's third-party notices.
-ROM device-specific proprietary components and Pokémon assets are not relicensed by this repository.
+| Hardware | Status | Tested / still unverified |
+|---|---|---|
+| Main display | Working in earlier builds | Android boots and displays the UI. |
+| Keypad and D-pad | Working in earlier builds | Navigation and app key handling tested. |
+| USB / ADB | Working in earlier builds | Android and recovery connections tested. |
+| Internal storage | Working in earlier builds | System boot and app installation tested. |
+| microSD | Working in earlier builds | Portable-card mounting and file reads verified after reboot. |
+| Camera | Partially verified | Preview/orientation tested; photo reliability and video recording remain unverified. |
+| Bluetooth | Partially verified | Controller enabled in a live test; pairing, audio and transfers remain unverified. |
+| Infrared | Partially verified | Driver access and transmit/read paths tested; real game/Pokéwalker exchanges remain unverified. |
+| Wi-Fi | Unverified for this release | Connection and internet access need retesting. |
+| Cellular radio | Unverified for this release | Calls, SMS and mobile data need testing. |
+| GPS | Unverified | Outdoor position fix not confirmed. |
+| Speaker, microphone and headset | Unverified | Audible playback, recording and call audio need testing. |
+| Outer display and lid behavior | Unverified end to end | Real incoming-call display and physical lid behavior need testing. |
+| Light, proximity and motion sensors | Unverified | Physical sensor readings and automatic brightness need testing. |
+| Flashlight and vibration | Unverified for this release | Physical operation needs testing. |
+| Battery / charging | Unverified in detail | Charging behavior, battery reporting and endurance need testing. |
